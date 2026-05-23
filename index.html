@@ -25,8 +25,9 @@
     /* App background */
     --paper: #f4ede0;
     --paper-deep: #ebe2d0;
-    /* Card faces — pure white in light mode (both front and back) */
+    /* Card faces — pure white front; subtly off-white back so the flip is visible at a glance */
     --paper-card: #ffffff;
+    --paper-card-back: #f5f1e8;
     /* Text */
     --ink: #1a1612;
     --ink-soft: #4a4036;
@@ -54,6 +55,7 @@
       --paper: #15120f;
       --paper-deep: #1e1a16;
       --paper-card: #2a2520;
+      --paper-card-back: #322c26;
       --ink: #f0e8d7;
       --ink-soft: #b8ab94;
       --ink-faint: #8a7d6b;
@@ -148,13 +150,22 @@
     }
 
     /* Card sized to fill available vertical space (chrome is hidden).
-       Width capped so the two flanking buttons + their gaps fit alongside without overflow.
-       Each side reserves: 56px button + ~10px gap = 66px. Total horizontal overhead: 132px. */
+       In landscape grid layout, the parent column is "auto" — it shrinks to fit the
+       card. The card needs a definite WIDTH (not just max-width), or it collapses.
+       The width takes the smaller of:
+         (a) 5:3 of available height (so 5:3 aspect holds), or
+         (b) viewport width minus button overhead (132px) minus safe-area-insets
+       The safe-area subtraction handles iPhone Dynamic Island / notch in landscape. */
     body.view-study .card-frame {
       grid-column: 2;
       grid-row: 1;
-      max-height: 95vh;
-      max-width: min(calc(95vh * 5 / 3), calc(100vw - 140px));
+      width: min(
+        calc(95vh * 5 / 3),
+        calc(100vw - 132px - env(safe-area-inset-left) - env(safe-area-inset-right))
+      );
+      /* Override base max-* caps so card can grow */
+      max-width: none;
+      max-height: none;
     }
 
     /* Flanks: simple grid items beside the card */
@@ -402,10 +413,11 @@
     grid-row: 2;
     width: 100%;
     aspect-ratio: 5 / 3;          /* Landscape 3x5 index card */
-    /* Cap height on big screens (desktop) so the card doesn't grow huge. */
-    max-height: 560px;
+    /* Default size cap — used in portrait and landscape on desktop.
+       Tall enough to feel substantial on common desktop windows. */
+    max-height: min(75vh, 720px);
     /* When max-height kicks in, also cap width so 5:3 is preserved */
-    max-width: calc(560px * 5 / 3);
+    max-width: calc(min(75vh, 720px) * 5 / 3);
     justify-self: center;
     position: relative;
   }
@@ -435,7 +447,7 @@
     flex-direction: column;
     padding: 0.75rem 1rem;
   }
-  .face.back { transform: rotateY(180deg); }
+  .face.back { transform: rotateY(180deg); background: var(--paper-card-back); }
 
   /* Chrome above/below the card: confined to middle grid column so they match card width */
   .card-chrome-top, .card-chrome-bottom {

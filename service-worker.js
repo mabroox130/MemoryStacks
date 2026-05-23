@@ -2,7 +2,7 @@
 // Strategy: cache-first for the app shell, network-with-cache-fallback for everything else.
 // Bump CACHE_VERSION whenever you change app shell files.
 
-const CACHE_VERSION = 'memory-stacks-v10';
+const CACHE_VERSION = 'memory-stacks-v11';
 const APP_SHELL = [
   './',
   './index.html',
