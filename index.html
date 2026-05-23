@@ -100,7 +100,11 @@
     height: 100%;
     max-width: 560px;
     margin: 0 auto;
-    padding: max(env(safe-area-inset-top), 1.25rem) 1.5rem max(env(safe-area-inset-bottom), 1.25rem);
+    padding:
+      max(env(safe-area-inset-top), 1.25rem)
+      max(env(safe-area-inset-right), 1.5rem)
+      max(env(safe-area-inset-bottom), 1.25rem)
+      max(env(safe-area-inset-left), 1.5rem);
     display: flex;
     flex-direction: column;
   }
@@ -111,10 +115,13 @@
   @media (orientation: landscape) and (max-height: 540px) {
     .app {
       max-width: 1100px;
-      padding-left: 1rem;
-      padding-right: 1rem;
-      padding-top: max(env(safe-area-inset-top), 0.5rem);
-      padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+      /* Use safe-area-insets for left/right so Dynamic Island and notches push content
+         inward instead of letting buttons hide under them */
+      padding:
+        max(env(safe-area-inset-top), 0.5rem)
+        max(env(safe-area-inset-right), 1rem)
+        max(env(safe-area-inset-bottom), 0.5rem)
+        max(env(safe-area-inset-left), 1rem);
     }
     .top-bar { padding-bottom: 0.5rem; }
     main { padding: 0.25rem 0; }
@@ -126,11 +133,39 @@
     /* Show the floating back chevron only when the top bar is hidden */
     body.view-study .floating-back { display: grid; }
 
-    /* With chrome hidden, allow the card to grow taller. The 5:3 ratio means
-       the width-cap is what most often binds — make it generous. */
+    /* Take the study area out of grid-distribute mode. The card centers itself; the
+       flank buttons anchor DIRECTLY to the card (not the viewport edges), so they sit
+       close to the card no matter how wide the viewport is. */
+    body.view-study .study-area {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* Card sized to fill available vertical space (chrome is hidden).
+       Width capped so the two flanking buttons + their gaps fit alongside without overflow.
+       Each side reserves: 56px button + ~10px gap = 66px. Total horizontal overhead: 132px. */
     body.view-study .card-frame {
       max-height: 95vh;
-      max-width: calc(95vh * 5 / 3);
+      max-width: min(calc(95vh * 5 / 3), calc(100% - 140px));
+      position: relative;
+    }
+
+    /* Flanks: absolutely positioned to flank the card itself */
+    body.view-study .flank {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      height: auto;
+    }
+    body.view-study .flank-left {
+      right: 100%;             /* sit just to the left of the card */
+      margin-right: 0.6rem;    /* small gap between button and card */
+    }
+    body.view-study .flank-right {
+      left: 100%;              /* sit just to the right of the card */
+      margin-left: 0.6rem;
     }
   }
 
