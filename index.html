@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#1a1612">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Memory Stacks">
+<meta name="description" content="A quiet flashcard app. Import from CSV or PowerPoint, study with spaced repetition.">
+
+<title>Memory Stacks — Flashcards</title>
+
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper: #f4ede0;
+    --paper-deep: #ebe2d0;
+    --paper-card: #fdfaf3;
+    --ink: #1a1612;
+    --ink-soft: #4a4036;
+    --ink-faint: #8a7d6b;
+    --accent: #a14d29;
+    --accent-soft: #c7704a;
+    --green: #5a6f3f;
+    --rule: rgba(26, 22, 18, 0.12);
+    --rule-strong: rgba(26, 22, 18, 0.22);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Bricolage Grotesque', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  /* Paper grain texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.4;
+    z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.09 0 0 0 0 0.07 0 0 0 0.08 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    padding: max(env(safe-area-inset-top), 1.25rem) 1.5rem max(env(safe-area-inset-bottom), 1.25rem);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ============ Header ============ */
+  .top-bar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-bottom: 1.1rem;
+    border-bottom: 1px solid var(--rule);
+    flex-shrink: 0;
+  }
+
+  .brand {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.5rem;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    user-select: none;
+  }
+  .brand em { font-style: italic; color: var(--accent); }
+
+  .top-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    display: flex;
+    gap: 1rem;
+    align-items: baseline;
+  }
+  .top-meta .label { color: var(--ink-soft); }
+  .top-meta .back-btn {
+    background: none;
+    border: none;
+    color: var(--ink-faint);
+    font-family: inherit;
+    font-size: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+    padding: 0;
+  }
+  .top-meta .back-btn:hover { color: var(--accent); }
+
+  main {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 1rem 0;
+    display: flex;
+    flex-direction: column;
+  }
+  main::-webkit-scrollbar { width: 0; }
+
+  /* ============ HOME VIEW ============ */
+  .home-intro {
+    margin-bottom: 1.5rem;
+  }
+  .home-intro h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2.5rem;
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    margin-bottom: 0.4rem;
+  }
+  .home-intro h1 em { color: var(--accent); }
+  .home-intro p {
+    color: var(--ink-soft);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    max-width: 30ch;
+  }
+
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 1rem 0 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+
+  .deck-list { display: flex; flex-direction: column; gap: 0.6rem; }
+
+  .deck-card {
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1rem 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .deck-card:hover { border-color: var(--rule-strong); transform: translateY(-1px); box-shadow: 0 6px 20px -10px rgba(26,22,18,0.15); }
+  .deck-card:active { transform: translateY(0); }
+
+  .deck-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .deck-name-display {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.4rem;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+  .deck-due-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: var(--accent);
+    color: var(--paper);
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+  }
+  .deck-due-pill.none { background: transparent; color: var(--ink-faint); }
+
+  .deck-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .deck-meta span strong { color: var(--ink-soft); font-weight: 500; }
+  .deck-meta .next-due { color: var(--ink-faint); font-style: italic; }
+
+  /* Edit button on each deck card (top-right corner) */
+  .deck-edit-btn {
+    position: absolute;
+    top: 0.65rem;
+    right: 0.65rem;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--ink-faint);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    font-size: 0.9rem;
+    transition: all 0.15s;
+    z-index: 2;
+  }
+  .deck-edit-btn:hover {
+    background: var(--paper-deep);
+    border-color: var(--rule);
+    color: var(--accent);
+  }
+  /* Make room so the deck name doesn't collide with the edit button */
+  .deck-card-head { padding-right: 2.25rem; }
+
+  /* Tiny Leitner box pips */
+  .box-bar {
+    display: flex;
+    gap: 3px;
+    margin-top: 0.3rem;
+  }
+  .box-pip {
+    flex: 1;
+    height: 4px;
+    border-radius: 1px;
+    background: var(--paper-deep);
+  }
+  .box-pip.filled-1 { background: #c7704a; }
+  .box-pip.filled-2 { background: #b89060; }
+  .box-pip.filled-3 { background: #a8a070; }
+  .box-pip.filled-4 { background: #88a070; }
+  .box-pip.filled-5 { background: var(--green); }
+
+  .deck-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  /* ============ STUDY VIEW ============ */
+  .study-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0;
+    perspective: 1600px;
+  }
+
+  .card-frame {
+    width: 100%;
+    aspect-ratio: 5 / 3;          /* Landscape 3x5 index card */
+    max-height: min(72vh, 560px);
+    position: relative;
+  }
+
+  .card {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    transition: transform 0.55s cubic-bezier(0.7, 0, 0.3, 1);
+    cursor: pointer;
+  }
+  .card.flipped { transform: rotateY(180deg); }
+
+  .face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.6) inset,
+      0 10px 30px -10px rgba(26, 22, 18, 0.18),
+      0 30px 60px -30px rgba(26, 22, 18, 0.15);
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem 1rem;
+  }
+  .face.back { transform: rotateY(180deg); background: #f9f3e6; }
+
+  /* Chrome above the card: side label, card number */
+  .card-chrome-top, .card-chrome-bottom {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    padding: 0 0.1rem;
+  }
+  .card-chrome-top {
+    justify-content: space-between;
+    margin-bottom: 0.6rem;
+  }
+  .card-chrome-bottom {
+    justify-content: center;
+    margin-top: 0.6rem;
+    min-height: 1em;  /* reserve space even when hint is hidden */
+  }
+  .chrome-side-label {
+    transition: color 0.2s;
+  }
+  .chrome-side-label.is-back { color: var(--ink-soft); font-style: italic; font-family: 'Instrument Serif', serif; text-transform: none; letter-spacing: 0; font-size: 0.78rem; }
+  .chrome-meta .box-tag { color: var(--ink-soft); }
+  .chrome-meta .num { color: var(--accent); margin-left: 0.6rem; }
+  .chrome-hint {
+    opacity: 0.7;
+    transition: opacity 0.2s;
+  }
+
+  .face-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(1.4rem, 5.5vw, 2.4rem);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    padding: 0;
+    overflow-y: auto;
+    /* Honor newlines from the CSV (e.g. multi-line lists in a single cell) */
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  /* Multi-line content (lists, steps, etc.) — left-aligned, smaller, top-anchored.
+     Uses block layout because Safari handles text-align inconsistently inside
+     a flex container that's nested in a rotated 3D-transformed parent.
+     Sized to fit ~12 lines in a phone-width 3:2 card. */
+  .face-content.multiline {
+    display: block;
+    text-align: left;
+    font-size: clamp(0.82rem, 3vw, 1rem);
+    line-height: 1.3;
+    padding: 0;
+  }
+  /* Inline rich-text styles preserved from CSV markdown/HTML */
+  .face-content strong { font-weight: 600; color: var(--ink); }
+  .face-content em { font-style: italic; }
+  .face-content u { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  .face.back .face-content { font-style: italic; color: var(--ink-soft); }
+  .face.back .face-content em { font-style: normal; }  /* em flips back to upright on the italic back face */
+  .face-content::-webkit-scrollbar { width: 0; }
+
+  /* ============ Empty states ============ */
+  .empty {
+    flex: 1;
+    width: 100%;
+    text-align: center;
+    padding: 2rem 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .empty h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2rem;
+    font-weight: 400;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.01em;
+  }
+  .empty h2 em { color: var(--accent); font-style: italic; }
+  .empty p {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    max-width: 30ch;
+    margin: 0 auto 1.5rem;
+  }
+  .csv-hint {
+    background: var(--paper-deep);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1rem 1.25rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    text-align: left;
+    color: var(--ink-soft);
+    margin: 0 auto 1.5rem;
+    max-width: 320px;
+    line-height: 1.6;
+  }
+  .csv-hint .head {
+    display: block;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 0.4rem;
+  }
+
+  /* ============ Session complete ============ */
+  .complete {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem 0;
+  }
+  .complete h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2.4rem;
+    font-weight: 400;
+    margin-bottom: 0.4rem;
+  }
+  .complete h2 em { color: var(--accent); font-style: italic; }
+  .complete .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+    margin: 1.5rem 0;
+    width: 100%;
+    max-width: 320px;
+  }
+  .stat-tile {
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1rem;
+  }
+  .stat-tile .value {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2.2rem;
+    line-height: 1;
+    color: var(--ink);
+  }
+  .stat-tile.knew .value { color: var(--green); }
+  .stat-tile.again .value { color: var(--accent); }
+  .stat-tile .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-top: 0.4rem;
+  }
+
+  /* ============ Footer / controls ============ */
+  .footer-bar {
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    flex-shrink: 0;
+  }
+
+  .review-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+  }
+  .review {
+    border: 1px solid var(--rule);
+    background: transparent;
+    padding: 0.85rem 1rem;
+    border-radius: 4px;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .review:hover { background: var(--paper-deep); color: var(--ink); }
+  .review:active { transform: scale(0.98); }
+  .review .glyph {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 1rem;
+    margin-right: 0.4rem;
+  }
+  .review.knew .glyph { color: var(--green); }
+  .review.again .glyph { color: var(--accent); }
+
+  .ctrl-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+  .center-ctrls { display: flex; gap: 0.3rem; }
+
+  .text-btn {
+    background: transparent;
+    border: none;
+    color: var(--ink-soft);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.64rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 0.5rem 0.6rem;
+  }
+  .text-btn:hover { color: var(--accent); }
+  .text-btn.danger:hover { color: #c14a3a; }
+
+  .icon-btn {
+    background: transparent;
+    border: 1px solid var(--rule);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    color: var(--ink-soft);
+    transition: all 0.15s;
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+  .icon-btn:hover:not(:disabled) { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .primary {
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
+    padding: 0.85rem 1.5rem;
+    border-radius: 4px;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .primary:hover { background: var(--accent); border-color: var(--accent); }
+  .primary:active { transform: scale(0.98); }
+
+  .secondary {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--rule-strong);
+    padding: 0.85rem 1.5rem;
+    border-radius: 4px;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .secondary:hover { background: var(--paper-deep); }
+
+  /* ============ Editor view ============ */
+  .editor-deck-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .editor-name-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    color: var(--ink);
+    text-align: left;
+  }
+  .editor-name {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.8rem;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+  }
+  .editor-name-edit {
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+    opacity: 0.7;
+    transition: all 0.15s;
+  }
+  .editor-name-btn:hover .editor-name-edit { color: var(--accent); opacity: 1; }
+  .editor-deck-stats {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  .editor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .editor-row {
+    background: var(--paper-card);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 0.7rem 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .editor-row-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .editor-row-num { color: var(--accent); }
+  .editor-row-meta { color: var(--ink-soft); }
+  .editor-row-delete {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: var(--ink-faint);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    display: grid;
+    place-items: center;
+    transition: all 0.15s;
+  }
+  .editor-row-delete:hover { background: #fbe6e1; color: #c14a3a; }
+
+  .editor-input {
+    width: 100%;
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Instrument Serif', serif;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    border-radius: 3px;
+    padding: 0.5rem 0.65rem;
+    resize: vertical;
+    min-height: 2.4rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .editor-front { font-weight: 400; }
+  .editor-back { font-style: italic; color: var(--ink-soft); }
+  .editor-input:focus {
+    outline: none;
+    border-color: var(--accent-soft);
+    background: var(--paper-card);
+  }
+  .editor-input.saved {
+    border-color: var(--green);
+  }
+
+  .editor-empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--ink-faint);
+    font-style: italic;
+    background: var(--paper-deep);
+    border-radius: 4px;
+  }
+
+  .editor-add-row {
+    margin: 1rem 0 0.5rem;
+    text-align: center;
+  }
+
+  .editor-tools {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* ============ Modal ============ */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 22, 18, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-backdrop.show { opacity: 1; pointer-events: auto; }
+  .modal {
+    background: var(--paper);
+    border: 1px solid var(--rule-strong);
+    border-radius: 4px;
+    padding: 1.5rem;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 20px 60px -20px rgba(0,0,0,0.3);
+  }
+  .modal h3 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.5rem;
+    font-weight: 400;
+    margin-bottom: 0.5rem;
+  }
+  .modal p {
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+  .modal input[type="text"] {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--rule-strong);
+    background: var(--paper-card);
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 0.95rem;
+    color: var(--ink);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+  }
+  .modal input[type="text"]:focus { outline: none; border-color: var(--accent); }
+
+  /* ============ Toast ============ */
+  .toast {
+    position: fixed;
+    bottom: 5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 0.7rem 1.2rem;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  input[type="file"] { display: none; }
+
+  /* ============ Install banner (Android) ============ */
+  .install-banner {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 0.7rem 1rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    display: none;
+    align-items: center;
+    gap: 0.8rem;
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.3);
+    z-index: 40;
+    max-width: 90%;
+  }
+  .install-banner.show { display: flex; }
+  .install-banner button {
+    background: var(--accent);
+    color: var(--paper);
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .install-banner .dismiss {
+    background: transparent;
+    color: var(--ink-faint);
+    padding: 0.4rem;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .entering { animation: fadeIn 0.3s ease-out; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="top-bar">
+    <div class="brand" id="brandHome">Memory<em>Stacks</em></div>
+    <div class="top-meta" id="topMeta"></div>
+  </div>
+
+  <main id="main"><!-- View renders here --></main>
+
+  <div class="footer-bar" id="footer"><!-- Controls render here --></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="fileInput" accept=".csv,.pptx,text/csv,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+
+<!-- Modal for prompts (deck name on import, confirm delete, etc.) -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modal"></div>
+</div>
+
+<!-- Android install banner -->
+<div class="install-banner" id="installBanner">
+  <span>Install Memory Stacks on this device?</span>
+  <button id="installBtn">Install</button>
+  <button class="dismiss" id="installDismiss">✕</button>
+</div>
+
+<script src="jszip.min.js"></script>
+<script src="app.js"></script>
+<script>
+  // Service worker registration (only in production / HTTPS / localhost)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js')
+        .catch(err => console.warn('SW registration failed:', err));
+    });
+  }
+</script>
+</body>
+</html>
