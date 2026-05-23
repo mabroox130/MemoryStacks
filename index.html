@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#1a1612">
+<meta name="theme-color" content="#f4ede0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15120f" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Memory Stacks">
@@ -21,17 +22,53 @@
 
 <style>
   :root {
+    /* App background */
     --paper: #f4ede0;
     --paper-deep: #ebe2d0;
-    --paper-card: #fdfaf3;
+    /* Card faces — pure white in light mode (both front and back) */
+    --paper-card: #ffffff;
+    /* Text */
     --ink: #1a1612;
     --ink-soft: #4a4036;
     --ink-faint: #8a7d6b;
+    /* Accents */
     --accent: #a14d29;
     --accent-soft: #c7704a;
     --green: #5a6f3f;
+    /* Lines and shadows */
     --rule: rgba(26, 22, 18, 0.12);
     --rule-strong: rgba(26, 22, 18, 0.22);
+    --shadow-1: rgba(26, 22, 18, 0.18);
+    --shadow-2: rgba(26, 22, 18, 0.15);
+    --card-highlight: rgba(255, 255, 255, 0.6);
+    /* Paper grain (becomes 0 in dark mode) */
+    --grain-opacity: 0.4;
+    /* Subtle danger background (used for delete hover etc.) */
+    --danger-soft: rgba(193, 74, 58, 0.10);
+    --backdrop: rgba(26, 22, 18, 0.4);
+  }
+
+  /* Dark mode — follows OS / browser system setting */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #15120f;
+      --paper-deep: #1e1a16;
+      --paper-card: #2a2520;
+      --ink: #f0e8d7;
+      --ink-soft: #b8ab94;
+      --ink-faint: #8a7d6b;
+      --accent: #d4815e;
+      --accent-soft: #e09a78;
+      --green: #88a070;
+      --rule: rgba(244, 237, 224, 0.10);
+      --rule-strong: rgba(244, 237, 224, 0.20);
+      --shadow-1: rgba(0, 0, 0, 0.5);
+      --shadow-2: rgba(0, 0, 0, 0.4);
+      --card-highlight: rgba(255, 255, 255, 0.04);
+      --grain-opacity: 0;
+      --danger-soft: rgba(212, 97, 79, 0.18);
+      --backdrop: rgba(0, 0, 0, 0.7);
+    }
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -52,7 +89,7 @@
     position: fixed;
     inset: 0;
     pointer-events: none;
-    opacity: 0.4;
+    opacity: var(--grain-opacity);
     z-index: 0;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.09 0 0 0 0 0.07 0 0 0 0.08 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
@@ -80,6 +117,18 @@
     }
     .top-bar { padding-bottom: 0.5rem; }
     main { padding: 0.25rem 0; }
+
+    /* In the study view specifically, hide all chrome so the card dominates.
+       The top app bar is scoped to study view (other views need their bar). */
+    body.view-study .top-bar { display: none; }
+    /* Chrome rows only exist in study view, so safe to hide globally in landscape */
+    .card-chrome-top, .card-chrome-bottom { display: none; }
+
+    /* With chrome hidden, allow the card to expand to fill more vertical space */
+    body.view-study .card-frame {
+      max-height: min(94vh, 700px);
+      max-width: calc(min(94vh, 700px) * 5 / 3);
+    }
   }
 
   /* The footer-bar is empty during study (buttons moved to card sides) — hide it. */
@@ -328,14 +377,14 @@
     border: 1px solid var(--rule);
     border-radius: 4px;
     box-shadow:
-      0 1px 0 rgba(255,255,255,0.6) inset,
-      0 10px 30px -10px rgba(26, 22, 18, 0.18),
-      0 30px 60px -30px rgba(26, 22, 18, 0.15);
+      0 1px 0 var(--card-highlight) inset,
+      0 10px 30px -10px var(--shadow-1),
+      0 30px 60px -30px var(--shadow-2);
     display: flex;
     flex-direction: column;
     padding: 0.75rem 1rem;
   }
-  .face.back { transform: rotateY(180deg); background: #f9f3e6; }
+  .face.back { transform: rotateY(180deg); }
 
   /* Chrome above/below the card: confined to middle grid column so they match card width */
   .card-chrome-top, .card-chrome-bottom {
@@ -366,7 +415,8 @@
   .chrome-side-label {
     transition: color 0.2s;
   }
-  .chrome-side-label.is-back { color: var(--ink-soft); font-style: italic; font-family: 'Instrument Serif', serif; text-transform: none; letter-spacing: 0; font-size: 0.78rem; }
+  /* BACK uses the same monospace uppercase styling as FRONT (inherited from .card-chrome-top).
+     The label text itself ("FRONT" → "BACK") is the indicator. */
   .chrome-meta .box-tag { color: var(--ink-soft); }
   .chrome-meta .num { color: var(--accent); margin-left: 0.6rem; }
   .chrome-hint {
@@ -770,7 +820,7 @@
     place-items: center;
     transition: all 0.15s;
   }
-  .editor-row-delete:hover { background: #fbe6e1; color: #c14a3a; }
+  .editor-row-delete:hover { background: var(--danger-soft); color: #c14a3a; }
 
   .editor-input {
     width: 100%;
@@ -824,7 +874,7 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(26, 22, 18, 0.4);
+    background: var(--backdrop);
     backdrop-filter: blur(2px);
     z-index: 50;
     display: flex;

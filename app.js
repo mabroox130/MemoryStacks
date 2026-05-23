@@ -632,7 +632,7 @@ function renderStudy() {
 
   $('brandHome').style.cursor = 'pointer';
   $('topMeta').innerHTML = `
-    <span>stack &middot; ${s.idx + 1} / ${s.cards.length}</span>`;
+    <span>card &middot; ${s.idx + 1} / ${s.cards.length}</span>`;
 
   const card = s.cards[s.idx];
   // Detect multi-line content so we can switch to a left-aligned, list-friendly layout
@@ -742,6 +742,7 @@ function renderComplete() {
 // ===================================================================
 
 function render() {
+  document.body.className = 'view-' + state.view;
   if (state.view === 'home') renderHome();
   else if (state.view === 'study') renderStudy();
   else if (state.view === 'complete') renderComplete();
