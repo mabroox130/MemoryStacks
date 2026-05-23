@@ -68,6 +68,23 @@
     flex-direction: column;
   }
 
+  /* In landscape, give the app more horizontal room (for the side buttons + card),
+     and trim top/bottom padding so the card can dominate the short viewport. */
+  @media (orientation: landscape) {
+    .app {
+      max-width: 1100px;
+      padding-left: 1rem;
+      padding-right: 1rem;
+      padding-top: max(env(safe-area-inset-top), 0.5rem);
+      padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+    }
+    .top-bar { padding-bottom: 0.5rem; }
+    main { padding: 0.25rem 0; }
+  }
+
+  /* The footer-bar is empty during study (buttons moved to card sides) — hide it. */
+  .footer-bar:empty { display: none; }
+
   /* ============ Header ============ */
   .top-bar {
     display: flex;
@@ -239,23 +256,24 @@
   /* Make room so the deck name doesn't collide with the edit button */
   .deck-card-head { padding-right: 2.25rem; }
 
-  /* Tiny Leitner box pips */
+  /* Tiny Leitner box pips — taller blocks so they read as "boxes" not "lines" */
   .box-bar {
     display: flex;
-    gap: 3px;
-    margin-top: 0.3rem;
+    gap: 4px;
+    margin-top: 0.45rem;
   }
   .box-pip {
     flex: 1;
-    height: 4px;
-    border-radius: 1px;
+    height: 18px;
+    border-radius: 2px;
     background: var(--paper-deep);
+    border: 1px solid var(--rule);
   }
-  .box-pip.filled-1 { background: #c7704a; }
-  .box-pip.filled-2 { background: #b89060; }
-  .box-pip.filled-3 { background: #a8a070; }
-  .box-pip.filled-4 { background: #88a070; }
-  .box-pip.filled-5 { background: var(--green); }
+  .box-pip.filled-1 { background: #c7704a; border-color: #b86038; }
+  .box-pip.filled-2 { background: #b89060; border-color: #a07a4e; }
+  .box-pip.filled-3 { background: #a8a070; border-color: #8e8658; }
+  .box-pip.filled-4 { background: #88a070; border-color: #6f8757; }
+  .box-pip.filled-5 { background: var(--green); border-color: #455534; }
 
   .deck-actions {
     display: flex;
@@ -264,20 +282,31 @@
   }
 
   /* ============ STUDY VIEW ============ */
+  /* 3-column grid: [flank-left] [card + chrome] [flank-right].
+     Chrome rows occupy the middle column only, so they align with the card,
+     not with the full viewport width. */
   .study-area {
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto;
+    align-items: stretch;
+    align-content: center;
+    column-gap: 0.5rem;
+    row-gap: 0.3rem;
     padding: 0.25rem 0;
     perspective: 1600px;
   }
 
   .card-frame {
+    grid-column: 2;
+    grid-row: 2;
     width: 100%;
     aspect-ratio: 5 / 3;          /* Landscape 3x5 index card */
+    /* max-width keeps the card from getting wider than 5:3 when max-height triggers */
     max-height: min(72vh, 560px);
+    max-width: calc(min(72vh, 560px) * 5 / 3);
+    justify-self: center;
     position: relative;
   }
 
@@ -308,7 +337,7 @@
   }
   .face.back { transform: rotateY(180deg); background: #f9f3e6; }
 
-  /* Chrome above the card: side label, card number */
+  /* Chrome above/below the card: confined to middle grid column so they match card width */
   .card-chrome-top, .card-chrome-bottom {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.62rem;
@@ -317,18 +346,22 @@
     color: var(--ink-faint);
     display: flex;
     align-items: center;
+    grid-column: 2;
     width: 100%;
-    max-width: 100%;
+    max-width: calc(min(72vh, 560px) * 5 / 3);
+    justify-self: center;
     padding: 0 0.1rem;
   }
   .card-chrome-top {
+    grid-row: 1;
     justify-content: space-between;
-    margin-bottom: 0.6rem;
+    align-self: end;
   }
   .card-chrome-bottom {
+    grid-row: 3;
     justify-content: center;
-    margin-top: 0.6rem;
-    min-height: 1em;  /* reserve space even when hint is hidden */
+    align-self: start;
+    min-height: 1em;
   }
   .chrome-side-label {
     transition: color 0.2s;
@@ -339,6 +372,80 @@
   .chrome-hint {
     opacity: 0.7;
     transition: opacity 0.2s;
+  }
+
+  /* ============ Side-flanking buttons ============ */
+  .flank {
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;  /* primary action at top, nav at bottom */
+    gap: 0.5rem;
+    height: 100%;
+  }
+  .flank-left { grid-column: 1; }
+  .flank-right { grid-column: 3; }
+
+  .flank-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 4px;
+    border: 1px solid var(--rule);
+    background: transparent;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all 0.15s ease;
+    padding: 0;
+    color: var(--ink-soft);
+  }
+  .flank-btn:active { transform: scale(0.94); }
+
+  .flank-glyph {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  /* Primary buttons (top of each flank) */
+  .flank-again {
+    background: #c14a3a;
+    border-color: #c14a3a;
+    color: #fdfaf3;
+  }
+  .flank-again:hover { background: #a93d2f; border-color: #a93d2f; }
+
+  .flank-knew {
+    background: #5a8f3f;
+    border-color: #5a8f3f;
+    color: #fdfaf3;
+  }
+  .flank-knew:hover { background: #4a7a32; border-color: #4a7a32; }
+
+  /* Navigation arrows (bottom of each flank) — use serif glyph for finer look */
+  .flank-nav .flank-glyph {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.9rem;
+    font-style: italic;
+  }
+  .flank-nav:hover {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .flank-nav:disabled { opacity: 0.3; cursor: not-allowed; }
+  .flank-nav:disabled:hover {
+    background: transparent;
+    color: var(--ink-soft);
+    border-color: var(--rule);
+  }
+
+  /* In landscape (especially on phones), give buttons more room */
+  @media (orientation: landscape) {
+    .flank-btn { width: 52px; height: 52px; }
+    .flank-glyph { font-size: 1.7rem; }
+    .flank-nav .flank-glyph { font-size: 2.1rem; }
   }
 
   .face-content {

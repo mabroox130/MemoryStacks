@@ -641,6 +641,7 @@ function renderStudy() {
   const sideLabel = s.flipped ? 'Back' : 'Front';
   const sideLabelClass = s.flipped ? 'chrome-side-label is-back' : 'chrome-side-label';
   const hint = s.flipped ? 'Tap to flip back' : 'Tap to reveal';
+  const atFirst = s.idx === 0;
   const main = $('main');
   main.innerHTML = `
     <div class="study-area">
@@ -650,6 +651,14 @@ function renderStudy() {
           <span class="box-tag">Box ${card.box}</span>
           <span class="num">№ ${String(s.idx + 1).padStart(2, '0')}</span>
         </span>
+      </div>
+      <div class="flank flank-left">
+        <button class="flank-btn flank-again" id="markAgain" aria-label="Review again" title="Review again">
+          <span class="flank-glyph">×</span>
+        </button>
+        <button class="flank-btn flank-nav" id="prevBtn" ${atFirst ? 'disabled' : ''} aria-label="Previous card" title="Previous card">
+          <span class="flank-glyph">‹</span>
+        </button>
       </div>
       <div class="card-frame entering">
         <div class="card ${s.flipped ? 'flipped' : ''}" id="theCard">
@@ -661,30 +670,29 @@ function renderStudy() {
           </div>
         </div>
       </div>
+      <div class="flank flank-right">
+        <button class="flank-btn flank-knew" id="markKnew" aria-label="Got it" title="Got it">
+          <span class="flank-glyph">✓</span>
+        </button>
+        <button class="flank-btn flank-nav" id="nextBtn" aria-label="Skip to next" title="Skip to next">
+          <span class="flank-glyph">›</span>
+        </button>
+      </div>
       <div class="card-chrome-bottom">
         <span class="chrome-hint">${hint}</span>
       </div>
     </div>`;
 
-  $('footer').innerHTML = `
-    <div class="review-row">
-      <button class="review again" id="markAgain"><span class="glyph">×</span>Review again</button>
-      <button class="review knew" id="markKnew"><span class="glyph">✓</span>Got it</button>
-    </div>
-    <div class="ctrl-row">
-      <button class="icon-btn" id="prevBtn" ${s.idx === 0 ? 'disabled' : ''} aria-label="Previous">‹</button>
-      <div class="center-ctrls">
-        <button class="text-btn" id="skipBtn">Skip</button>
-      </div>
-      <button class="icon-btn" id="nextBtn" ${s.idx === s.cards.length - 1 ? 'disabled' : ''} aria-label="Next">›</button>
-    </div>`;
+  $('footer').innerHTML = '';
 
   $('theCard').addEventListener('click', () => { s.flipped = !s.flipped; renderStudy(); });
   $('markAgain').addEventListener('click', () => markAndAdvance(false));
   $('markKnew').addEventListener('click', () => markAndAdvance(true));
-  $('prevBtn').addEventListener('click', () => { if (s.idx > 0) { s.idx--; s.flipped = false; renderStudy(); } });
-  $('nextBtn').addEventListener('click', () => { if (s.idx < s.cards.length - 1) { s.idx++; s.flipped = false; renderStudy(); } });
-  $('skipBtn').addEventListener('click', () => {
+  $('prevBtn').addEventListener('click', () => {
+    if (s.idx > 0) { s.idx--; s.flipped = false; renderStudy(); }
+  });
+  // Right arrow: skip forward without marking. At the last card, completes the session.
+  $('nextBtn').addEventListener('click', () => {
     if (s.idx < s.cards.length - 1) { s.idx++; s.flipped = false; renderStudy(); }
     else completeSession();
   });
