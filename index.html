@@ -133,40 +133,33 @@
     /* Show the floating back chevron only when the top bar is hidden */
     body.view-study .floating-back { display: grid; }
 
-    /* Take the study area out of grid-distribute mode. The card centers itself; the
-       flank buttons anchor DIRECTLY to the card (not the viewport edges), so they sit
-       close to the card no matter how wide the viewport is. */
+    /* Landscape layout: a tightly packed inline-grid with 3 auto columns.
+       Auto columns shrink to fit their contents (button width, card width),
+       and the whole grid is centered horizontally. Result: buttons sit right
+       next to the card with only the column-gap between them. */
     body.view-study .study-area {
-      display: flex;
+      display: grid;
+      grid-template-columns: auto auto auto;
+      grid-template-rows: 1fr;
+      column-gap: 0.6rem;
+      row-gap: 0;
       align-items: center;
       justify-content: center;
-      position: relative;
     }
 
     /* Card sized to fill available vertical space (chrome is hidden).
        Width capped so the two flanking buttons + their gaps fit alongside without overflow.
        Each side reserves: 56px button + ~10px gap = 66px. Total horizontal overhead: 132px. */
     body.view-study .card-frame {
+      grid-column: 2;
+      grid-row: 1;
       max-height: 95vh;
-      max-width: min(calc(95vh * 5 / 3), calc(100% - 140px));
-      position: relative;
+      max-width: min(calc(95vh * 5 / 3), calc(100vw - 140px));
     }
 
-    /* Flanks: absolutely positioned to flank the card itself */
-    body.view-study .flank {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      height: auto;
-    }
-    body.view-study .flank-left {
-      right: 100%;             /* sit just to the left of the card */
-      margin-right: 0.6rem;    /* small gap between button and card */
-    }
-    body.view-study .flank-right {
-      left: 100%;              /* sit just to the right of the card */
-      margin-left: 0.6rem;
-    }
+    /* Flanks: simple grid items beside the card */
+    body.view-study .flank-left  { grid-column: 1; grid-row: 1; }
+    body.view-study .flank-right { grid-column: 3; grid-row: 1; }
   }
 
   /* Portrait — the 5:3 aspect ratio combined with a narrow viewport leaves the card
@@ -571,10 +564,11 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    font-family: 'Instrument Serif', serif;
+    font-family: 'Bricolage Grotesque', sans-serif;
     font-size: clamp(1.4rem, 5.5vw, 2.4rem);
+    font-weight: 400;
     line-height: 1.2;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.005em;
     padding: 0;
     overflow-y: auto;
     /* Honor newlines from the CSV (e.g. multi-line lists in a single cell) */
@@ -588,16 +582,16 @@
   .face-content.multiline {
     display: block;
     text-align: left;
-    font-size: clamp(0.82rem, 3vw, 1rem);
-    line-height: 1.3;
+    font-size: clamp(0.85rem, 3vw, 1.05rem);
+    line-height: 1.35;
     padding: 0;
   }
   /* Inline rich-text styles preserved from CSV markdown/HTML */
   .face-content strong { font-weight: 600; color: var(--ink); }
   .face-content em { font-style: italic; }
   .face-content u { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
-  .face.back .face-content { font-style: italic; color: var(--ink-soft); }
-  .face.back .face-content em { font-style: normal; }  /* em flips back to upright on the italic back face */
+  /* Back face uses the same default sans-serif as front. Both white in light mode. */
+  .face.back .face-content { color: var(--ink); }
   .face-content::-webkit-scrollbar { width: 0; }
 
   /* ============ Empty states ============ */
@@ -1031,7 +1025,7 @@
     cursor: pointer;
     place-items: center;
     font-family: 'Bricolage Grotesque', sans-serif;
-    font-size: 1.4rem;
+    font-size: 1.6rem;
     font-weight: 400;
     line-height: 1;
     z-index: 30;
@@ -1099,7 +1093,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<button class="floating-back" id="floatingBack" aria-label="Back to stacks" title="Back to stacks">‹</button>
+<button class="floating-back" id="floatingBack" aria-label="Exit study" title="Exit study">×</button>
 <input type="file" id="fileInput" accept=".csv,.pptx,text/csv,application/vnd.openxmlformats-officedocument.presentationml.presentation">
 
 <!-- Modal for prompts (deck name on import, confirm delete, etc.) -->
