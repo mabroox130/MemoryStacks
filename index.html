@@ -105,9 +105,10 @@
     flex-direction: column;
   }
 
-  /* In landscape, give the app more horizontal room (for the side buttons + card),
-     and trim top/bottom padding so the card can dominate the short viewport. */
-  @media (orientation: landscape) {
+  /* In short-landscape viewports (phones in landscape), give the app more horizontal
+     room and trim padding so the card can dominate. Critically: this does NOT fire on
+     a normal desktop browser window (which is usually 600px+ tall). */
+  @media (orientation: landscape) and (max-height: 540px) {
     .app {
       max-width: 1100px;
       padding-left: 1rem;
@@ -118,17 +119,38 @@
     .top-bar { padding-bottom: 0.5rem; }
     main { padding: 0.25rem 0; }
 
-    /* In the study view specifically, hide all chrome so the card dominates.
-       The top app bar is scoped to study view (other views need their bar). */
+    /* In the study view, hide all chrome so the card dominates. */
     body.view-study .top-bar { display: none; }
-    /* Chrome rows only exist in study view, so safe to hide globally in landscape */
-    .card-chrome-top, .card-chrome-bottom { display: none; }
+    body.view-study .card-chrome-top,
+    body.view-study .card-chrome-bottom { display: none; }
+    /* Show the floating back chevron only when the top bar is hidden */
+    body.view-study .floating-back { display: grid; }
 
-    /* With chrome hidden, allow the card to expand to fill more vertical space */
+    /* With chrome hidden, allow the card to grow taller. The 5:3 ratio means
+       the width-cap is what most often binds — make it generous. */
     body.view-study .card-frame {
-      max-height: min(94vh, 700px);
-      max-width: calc(min(94vh, 700px) * 5 / 3);
+      max-height: 95vh;
+      max-width: calc(95vh * 5 / 3);
     }
+  }
+
+  /* Portrait — the 5:3 aspect ratio combined with a narrow viewport leaves the card
+     awkwardly small (a landscape rectangle in a vertical column). We relax the strict
+     5:3 in portrait by removing aspect-ratio and letting the card fill more vertical
+     space — it still reads as a "card" but is no longer dominated by a width constraint. */
+  @media (orientation: portrait) {
+    body.view-study .card-frame {
+      aspect-ratio: auto;          /* Drop the 5:3 constraint */
+      max-height: 75vh;
+      max-width: 100%;
+      height: 60vh;                /* Reserve real vertical space */
+      min-height: 280px;
+    }
+    /* Smaller flank buttons in portrait so the card column is wider */
+    body.view-study .flank-btn { width: 40px; height: 40px; }
+    body.view-study .flank-glyph { font-size: 1.3rem; }
+    body.view-study .flank-nav .flank-glyph { font-size: 1.7rem; }
+    body.view-study .study-area { column-gap: 0.6rem; }
   }
 
   /* The footer-bar is empty during study (buttons moved to card sides) — hide it. */
@@ -341,7 +363,7 @@
     grid-template-rows: auto auto auto;
     align-items: stretch;
     align-content: center;
-    column-gap: 0.5rem;
+    column-gap: 0.9rem;
     row-gap: 0.3rem;
     padding: 0.25rem 0;
     perspective: 1600px;
@@ -352,9 +374,10 @@
     grid-row: 2;
     width: 100%;
     aspect-ratio: 5 / 3;          /* Landscape 3x5 index card */
-    /* max-width keeps the card from getting wider than 5:3 when max-height triggers */
-    max-height: min(72vh, 560px);
-    max-width: calc(min(72vh, 560px) * 5 / 3);
+    /* Cap height on big screens (desktop) so the card doesn't grow huge. */
+    max-height: 560px;
+    /* When max-height kicks in, also cap width so 5:3 is preserved */
+    max-width: calc(560px * 5 / 3);
     justify-self: center;
     position: relative;
   }
@@ -429,8 +452,9 @@
     grid-row: 2;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;  /* primary action at top, nav at bottom */
-    gap: 0.5rem;
+    justify-content: center;        /* centered near card middle, not edges */
+    align-items: center;
+    gap: 0.6rem;                    /* small gap between the two stacked buttons */
     height: 100%;
   }
   .flank-left { grid-column: 1; }
@@ -458,7 +482,7 @@
     line-height: 1;
   }
 
-  /* Primary buttons (top of each flank) */
+  /* Primary buttons */
   .flank-again {
     background: #c14a3a;
     border-color: #c14a3a;
@@ -473,29 +497,37 @@
   }
   .flank-knew:hover { background: #4a7a32; border-color: #4a7a32; }
 
-  /* Navigation arrows (bottom of each flank) — use serif glyph for finer look */
+  /* Navigation chevrons: sans-serif, normal weight, large glyph that fills the button.
+     Stronger background and border so they're visible against any page color. */
+  .flank-nav {
+    background: var(--paper-card);
+    border-color: var(--rule-strong);
+    color: var(--ink);
+  }
   .flank-nav .flank-glyph {
-    font-family: 'Instrument Serif', serif;
-    font-size: 1.9rem;
-    font-style: italic;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-style: normal;
+    font-weight: 400;
+    font-size: 2rem;            /* fills most of the 44px button */
+    line-height: 1;
   }
   .flank-nav:hover {
     background: var(--ink);
     color: var(--paper);
     border-color: var(--ink);
   }
-  .flank-nav:disabled { opacity: 0.3; cursor: not-allowed; }
+  .flank-nav:disabled { opacity: 0.35; cursor: not-allowed; }
   .flank-nav:disabled:hover {
-    background: transparent;
-    color: var(--ink-soft);
-    border-color: var(--rule);
+    background: var(--paper-card);
+    color: var(--ink);
+    border-color: var(--rule-strong);
   }
 
-  /* In landscape (especially on phones), give buttons more room */
-  @media (orientation: landscape) {
-    .flank-btn { width: 52px; height: 52px; }
-    .flank-glyph { font-size: 1.7rem; }
-    .flank-nav .flank-glyph { font-size: 2.1rem; }
+  /* Larger flank buttons on phone-landscape (where the card is huge) */
+  @media (orientation: landscape) and (max-height: 540px) {
+    .flank-btn { width: 56px; height: 56px; }
+    .flank-glyph { font-size: 1.85rem; }
+    .flank-nav .flank-glyph { font-size: 2.4rem; }
   }
 
   .face-content {
@@ -948,6 +980,32 @@
 
   input[type="file"] { display: none; }
 
+  /* Floating back-chevron, shown only in tight-landscape study (when top bar is hidden).
+     Lives in the top-left safe-area corner so it never collides with the card. */
+  .floating-back {
+    display: none;
+    position: fixed;
+    top: max(env(safe-area-inset-top), 0.5rem);
+    left: max(env(safe-area-inset-left), 0.5rem);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--paper-card);
+    border: 1px solid var(--rule-strong);
+    color: var(--ink);
+    cursor: pointer;
+    place-items: center;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 400;
+    line-height: 1;
+    z-index: 30;
+    box-shadow: 0 4px 12px -4px var(--shadow-1);
+    transition: all 0.15s;
+  }
+  .floating-back:hover { background: var(--ink); color: var(--paper); }
+  .floating-back:active { transform: scale(0.94); }
+
   /* ============ Install banner (Android) ============ */
   .install-banner {
     position: fixed;
@@ -1006,6 +1064,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<button class="floating-back" id="floatingBack" aria-label="Back to stacks" title="Back to stacks">‹</button>
 <input type="file" id="fileInput" accept=".csv,.pptx,text/csv,application/vnd.openxmlformats-officedocument.presentationml.presentation">
 
 <!-- Modal for prompts (deck name on import, confirm delete, etc.) -->

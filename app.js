@@ -685,7 +685,23 @@ function renderStudy() {
 
   $('footer').innerHTML = '';
 
-  $('theCard').addEventListener('click', () => { s.flipped = !s.flipped; renderStudy(); });
+  // Combined tap + swipe handler.
+  // - Quick stationary release (movement < TAP_MAX_MOVE) → flip
+  // - Horizontal drag past SWIPE_MIN_DIST with dominant horizontal motion → navigate
+  // - Otherwise: do nothing (might be a vertical scroll inside a long card)
+  setupCardGestures($('theCard'), {
+    onTap: () => { s.flipped = !s.flipped; renderStudy(); },
+    onSwipeLeft: () => {
+      // Swipe left → advance to next (mirrors the right-arrow button)
+      if (s.idx < s.cards.length - 1) { s.idx++; s.flipped = false; renderStudy(); }
+      else completeSession();
+    },
+    onSwipeRight: () => {
+      // Swipe right → go back to previous (mirrors the left-arrow button)
+      if (s.idx > 0) { s.idx--; s.flipped = false; renderStudy(); }
+    },
+  });
+
   $('markAgain').addEventListener('click', () => markAndAdvance(false));
   $('markKnew').addEventListener('click', () => markAndAdvance(true));
   $('prevBtn').addEventListener('click', () => {
@@ -695,6 +711,95 @@ function renderStudy() {
   $('nextBtn').addEventListener('click', () => {
     if (s.idx < s.cards.length - 1) { s.idx++; s.flipped = false; renderStudy(); }
     else completeSession();
+  });
+}
+
+// ===================================================================
+//  Card gestures (tap to flip, swipe to navigate)
+// ===================================================================
+
+const TAP_MAX_MOVE = 10;     // px — anything less than this is treated as a tap
+const SWIPE_MIN_DIST = 50;   // px — horizontal distance required to register as a swipe
+const SWIPE_MAX_TIME = 600;  // ms — anything slower is treated as a deliberate non-gesture
+
+function setupCardGestures(el, { onTap, onSwipeLeft, onSwipeRight }) {
+  if (!el) return;
+  let startX = 0, startY = 0, startTime = 0;
+  let active = false;
+  let movedSignificantly = false;
+  let dominantAxis = null; // 'h' | 'v' | null
+  let touchHandled = false; // true when a touch sequence just dispatched a tap/swipe
+
+  const onStart = (e) => {
+    const touch = e.touches ? e.touches[0] : e;
+    startX = touch.clientX;
+    startY = touch.clientY;
+    startTime = Date.now();
+    active = true;
+    movedSignificantly = false;
+    dominantAxis = null;
+    touchHandled = false;
+  };
+
+  const onMove = (e) => {
+    if (!active) return;
+    const touch = e.touches ? e.touches[0] : e;
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+    if (!movedSignificantly && (adx > 4 || ady > 4)) {
+      movedSignificantly = true;
+      // Lock axis at the first meaningful movement
+      dominantAxis = adx > ady ? 'h' : 'v';
+    }
+    // For horizontal swipes, prevent native horizontal scroll/page-back gestures
+    if (dominantAxis === 'h' && e.cancelable && e.touches) {
+      e.preventDefault();
+    }
+    // For vertical movements, do nothing — let the browser scroll the card content
+  };
+
+  const onEnd = (e) => {
+    if (!active) return;
+    active = false;
+    const touch = e.changedTouches ? e.changedTouches[0] : e;
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+    const elapsed = Date.now() - startTime;
+
+    // Stationary or near-stationary → tap
+    if (adx < TAP_MAX_MOVE && ady < TAP_MAX_MOVE) {
+      touchHandled = true;
+      onTap && onTap();
+      return;
+    }
+
+    // Horizontal swipe: dominant horizontal motion, past threshold, within time limit
+    if (dominantAxis === 'h' && adx > SWIPE_MIN_DIST && adx > ady && elapsed < SWIPE_MAX_TIME) {
+      touchHandled = true;
+      if (dx < 0) onSwipeLeft && onSwipeLeft();
+      else onSwipeRight && onSwipeRight();
+      return;
+    }
+    // Otherwise: ignore (probably a vertical scroll attempt or a slow drag)
+  };
+
+  const onCancel = () => { active = false; };
+
+  // Touch events for phones/tablets
+  el.addEventListener('touchstart', onStart, { passive: true });
+  el.addEventListener('touchmove', onMove, { passive: false });
+  el.addEventListener('touchend', onEnd);
+  el.addEventListener('touchcancel', onCancel);
+
+  // Mouse fallback for desktop (just enables tap-to-flip; no mouse-drag swipe support
+  // because that would conflict with text selection)
+  el.addEventListener('click', () => {
+    // After a touch, browsers also fire click on the same target ~50ms later.
+    // Skip it so we don't double-flip on phone.
+    if (touchHandled) { touchHandled = false; return; }
+    onTap && onTap();
   });
 }
 
@@ -1215,6 +1320,11 @@ async function init() {
 
   // Brand click → home
   $('brandHome').addEventListener('click', () => {
+    if (state.view !== 'home') exitToHome();
+  });
+
+  // Floating back chevron (only visible in tight-landscape study) → home
+  $('floatingBack').addEventListener('click', () => {
     if (state.view !== 'home') exitToHome();
   });
 
